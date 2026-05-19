@@ -3,7 +3,7 @@ services:
     name: standupbot
     runtime: python
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    startCommand: gunicorn standupbot.wsgi:application
+    startCommand: bash -c "python manage.py migrate && gunicorn standupbot.wsgi:application"
     envVars:
       - key: SECRET_KEY
         generateValue: true
