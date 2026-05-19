@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}StandupBot{% endblock %}</title>
+
+  <!-- HTMX -->
+  <script src="https://unpkg.com/htmx.org@1.9.10" defer></script>
+  <!-- Alpine.js -->
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --text: #1a202c;
+      --muted: #718096;
+      --accent: #4f46e5;
+      --accent-light: #eef2ff;
+      --danger: #e53e3e;
+      --danger-light: #fff5f5;
+      --success: #38a169;
+      --success-light: #f0fff4;
+      --warning: #d69e2e;
+      --warning-light: #fffff0;
+      --radius: 10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .navbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 1.5rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .navbar-brand {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--accent);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .navbar-brand span { font-size: 20px; }
+
+    .navbar-right { display: flex; align-items: center; gap: 16px; }
+
+    .navbar-user {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid transparent;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: #4338ca; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border-color: var(--border);
+    }
+
+    .btn-ghost:hover { background: var(--bg); }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+    }
+
+    .form-group { margin-bottom: 1.1rem; }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    textarea, input[type="text"], input[type="email"], input[type="password"] {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+      transition: border-color 0.15s;
+      background: #fff;
+      color: var(--text);
+    }
+
+    textarea:focus, input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+    }
+
+    .char-count {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: right;
+      margin-top: 3px;
+    }
+
+    .char-count.warn { color: var(--warning); }
+    .char-count.danger { color: var(--danger); }
+
+    .errorlist {
+      list-style: none;
+      color: var(--danger);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .alert {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 1rem;
+    }
+
+    .alert-info {
+      background: var(--accent-light);
+      color: var(--accent);
+      border: 1px solid #c7d2fe;
+    }
+
+    .alert-success {
+      background: var(--success-light);
+      color: var(--success);
+      border: 1px solid #c6f6d5;
+    }
+
+    .htmx-indicator {
+      display: none;
+    }
+
+    .htmx-request .htmx-indicator,
+    .htmx-request.htmx-indicator {
+      display: inline-block;
+    }
+
+    /* Feed entries */
+    .entry-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.25rem;
+      margin-bottom: 10px;
+    }
+
+    .entry-card.has-blockers {
+      border-left: 3px solid var(--warning);
+    }
+
+    .entry-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--accent-light);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .entry-meta { flex: 1; }
+    .entry-username { font-weight: 600; font-size: 14px; }
+    .entry-time { font-size: 12px; color: var(--muted); }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+
+    .section-text {
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 10px;
+      white-space: pre-wrap;
+    }
+
+    .blocker-tag {
+      display: inline-block;
+      background: var(--warning-light);
+      color: var(--warning);
+      border: 1px solid #faf089;
+      border-radius: 6px;
+      font-size: 12px;
+      padding: 2px 8px;
+      margin-bottom: 5px;
+    }
+
+    .blocker-section { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+
+    .stat-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--accent-light);
+      border: 1px solid #c7d2fe;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 1.25rem;
+      font-size: 13px;
+    }
+
+    .stat-bar strong { color: var(--accent); }
+
+    .refresh-badge {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+
+    .htmx-request .spinner { display: block; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-state {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: var(--muted);
+    }
+
+    .empty-state .emoji { font-size: 40px; margin-bottom: 10px; }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  </style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+{% if user.is_authenticated %}
+<nav class="navbar">
+  <a href="/" class="navbar-brand"><span>🚀</span> StandupBot</a>
+  <div class="navbar-right">
+    <span class="navbar-user">👤 {{ user.username }}</span>
+    <form method="post" action="/logout/" style="margin:0">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-ghost">Logout</button>
+    </form>
+  </div>
+</nav>
+{% endif %}
+
+{% block content %}{% endblock %}
+
+</body>
+</html>

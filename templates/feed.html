@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% block title %}Today's Standups – StandupBot{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <!-- ── Standup form (Alpine.js powered) ── -->
+  {% if not already_posted %}
+  <div class="card" style="margin-bottom: 1.5rem;"
+       x-data="{
+         did: '',
+         doing: '',
+         blockers: '',
+         showBlockers: false,
+         get didLeft() { return 500 - this.did.length },
+         get doingLeft() { return 500 - this.doing.length },
+         get blockersLeft() { return 300 - this.blockers.length },
+         get canSubmit() { return this.did.trim().length > 0 && this.doing.trim().length > 0 }
+       }">
+
+    <h2 class="section-title">📋 Post your standup</h2>
+
+    <form hx-post="/post/"
+          hx-target="#feed-container"
+          hx-swap="outerHTML"
+          hx-indicator="#submit-btn"
+          hx-on::after-request="if(event.detail.successful) $el.closest('.card').remove()">
+      {% csrf_token %}
+
+      <div class="form-group">
+        <label for="id_did">✅ What did you do yesterday?</label>
+        <textarea name="did" id="id_did" rows="3"
+                  placeholder="e.g. Finished the auth module, fixed the login bug..."
+                  maxlength="500"
+                  x-model="did">{{ form.did.value|default:'' }}</textarea>
+        <div class="char-count"
+             :class="{ warn: didLeft < 100, danger: didLeft < 20 }">
+          <span x-text="didLeft"></span> characters left
+        </div>
+        {{ form.did.errors }}
+      </div>
+
+      <div class="form-group">
+        <label for="id_doing">🔨 What are you doing today?</label>
+        <textarea name="doing" id="id_doing" rows="3"
+                  placeholder="e.g. Working on the dashboard, reviewing PRs..."
+                  maxlength="500"
+                  x-model="doing">{{ form.doing.value|default:'' }}</textarea>
+        <div class="char-count"
+             :class="{ warn: doingLeft < 100, danger: doingLeft < 20 }">
+          <span x-text="doingLeft"></span> characters left
+        </div>
+        {{ form.doing.errors }}
+      </div>
+
+      <!-- Blocker section — toggle with Alpine x-show -->
+      <div class="form-group">
+        <button type="button" class="btn btn-ghost" style="font-size: 13px; padding: 5px 12px;"
+                @click="showBlockers = !showBlockers">
+          <span x-text="showBlockers ? '▲ Hide blockers' : '🚧 Add blockers'"></span>
+        </button>
+
+        <div x-show="showBlockers" x-transition style="margin-top: 10px;">
+          <label for="id_blockers">🚧 Any blockers?</label>
+          <textarea name="blockers" id="id_blockers" rows="2"
+                    placeholder="e.g. Waiting on API keys from DevOps..."
+                    maxlength="300"
+                    x-model="blockers">{{ form.blockers.value|default:'' }}</textarea>
+          <div class="char-count"
+               :class="{ warn: blockersLeft < 80, danger: blockersLeft < 20 }">
+            <span x-text="blockersLeft"></span> characters left
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <button id="submit-btn" type="submit" class="btn btn-primary"
+                :disabled="!canSubmit">
+          <span class="htmx-indicator spinner"></span>
+          Post standup
+        </button>
+        <span x-show="!canSubmit" style="font-size: 12px; color: var(--muted);">
+          Fill in yesterday + today to submit
+        </span>
+      </div>
+    </form>
+  </div>
+
+  {% else %}
+  <div class="alert alert-success" style="margin-bottom: 1.5rem;">
+    ✅ You've already posted your standup today. See you tomorrow!
+  </div>
+  {% endif %}
+
+  <!-- ── Live feed (HTMX polled every 30s) ── -->
+  <div id="feed-container"
+       hx-get="/feed/partial/"
+       hx-trigger="every 30s"
+       hx-swap="outerHTML"
+       hx-indicator=".spinner">
+
+    {% include 'partials/feed_list.html' %}
+  </div>
+
+</div>
+{% endblock %}

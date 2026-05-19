@@ -1,0 +1,60 @@
+<div id="feed-container"
+     hx-get="/feed/partial/"
+     hx-trigger="every 30s"
+     hx-swap="outerHTML">
+
+  <!-- Stats bar -->
+  <div class="stat-bar">
+    <span>📅 Today's standups</span>
+    <strong>{{ posted_count }}</strong>
+    <span style="color: var(--muted);">posted</span>
+    <div class="refresh-badge">
+      <div class="spinner htmx-indicator"></div>
+      Auto-refreshes every 30s
+    </div>
+  </div>
+
+  <div class="section-title">🗂 Team feed</div>
+
+  {% if entries %}
+    {% for entry in entries %}
+    <div class="entry-card {% if entry.has_blockers %}has-blockers{% endif %}">
+      <div class="entry-header">
+        <div class="avatar">{{ entry.user.username|slice:":2"|upper }}</div>
+        <div class="entry-meta">
+          <div class="entry-username">{{ entry.user.username }}</div>
+          <div class="entry-time">{{ entry.created_at|timesince }} ago</div>
+        </div>
+        {% if entry.has_blockers %}
+          <span class="blocker-tag">🚧 Has blocker</span>
+        {% endif %}
+      </div>
+
+      <div>
+        <div class="section-label">Yesterday</div>
+        <div class="section-text">{{ entry.did }}</div>
+      </div>
+
+      <div>
+        <div class="section-label">Today</div>
+        <div class="section-text">{{ entry.doing }}</div>
+      </div>
+
+      {% if entry.has_blockers %}
+      <div class="blocker-section">
+        <div class="section-label">🚧 Blocker</div>
+        <div class="section-text" style="color: var(--warning);">{{ entry.blockers }}</div>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+  {% else %}
+    <div class="empty-state">
+      <div class="emoji">☕</div>
+      <p style="font-weight: 500;">No standups yet today.</p>
+      <p style="font-size: 13px; margin-top: 4px;">Be the first to post!</p>
+    </div>
+  {% endif %}
+
+</div>
